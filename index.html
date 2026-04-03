@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎙️ Voice Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #e2e8f0; margin: 0; }
+
+  #chat::-webkit-scrollbar { width: 4px; }
+  #chat::-webkit-scrollbar-track { background: transparent; }
+  #chat::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+  .recording-pulse::before {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    background: rgba(239, 68, 68, 0.4); animation: pulse-ring 1s ease-out infinite;
+  }
+
+  @keyframes wave {
+    0%, 100% { height: 8px; } 50% { height: 24px; }
+  }
+  .wave-bar {
+    width: 3px; background: #3b82f6; border-radius: 2px; animation: wave 0.6s ease-in-out infinite;
+  }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+
+  .msg-enter { animation: slideIn 0.3s ease-out; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .gradient-border {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+    padding: 1px; border-radius: 1rem;
+  }
+  .gradient-border > div {
+    background: #1e1e2e; border-radius: calc(1rem - 1px);
+  }
+
+  @keyframes dotBounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+  .dot-bounce span {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #3b82f6; animation: dotBounce 1.2s infinite;
+  }
+  .dot-bounce span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-bounce span:nth-child(3) { animation-delay: 0.4s; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- Header -->
+<header class="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 sticky top-0 z-10">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">V</div>
+    <h1 class="text-lg font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Voice Chat</h1>
+  </div>
+  <div class="flex items-center gap-2">
+    <div id="ttsStatus" class="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-800/50 px-3 py-1.5 rounded-full">
+      <span class="w-2 h-2 rounded-full bg-green-500"></span>
+      <span id="voiceName">默认音色</span>
+    </div>
+    <button id="settingsBtn" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition" title="设置">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- Settings Panel -->
+<div id="settingsPanel" class="hidden border-b border-gray-800/50 bg-gray-900/50 px-4 py-3 space-y-3">
+  <div class="flex items-center justify-between">
+    <label class="text-sm text-gray-300">TTS 音色</label>
+    <select id="voiceSelect" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"></select>
+  </div>
+  <div class="flex items-center justify-between">
+    <label class="text-sm text-gray-300">语速</label>
+    <input id="rateRange" type="range" min="0.5" max="2" step="0.1" value="1" class="w-32 accent-blue-500">
+  </div>
+  <div class="flex items-center justify-between">
+    <label class="text-sm text-gray-300">音调</label>
+    <input id="pitchRange" type="range" min="0.5" max="2" step="0.1" value="1" class="w-32 accent-blue-500">
+  </div>
+</div>
+
+<!-- Chat Area -->
+<div id="chat" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+  <div id="placeholder" class="text-center text-gray-500 text-sm mt-8">
+    <div class="text-5xl mb-3">🎙️</div>
+    <p class="text-base">按住麦克风说话，或直接输入文字</p>
+    <p class="text-xs mt-1 text-gray-600">AI 会用语音回复你</p>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="border-t border-gray-800/50 bg-gray-900/30 backdrop-blur-sm px-4 py-3 space-y-3">
+  <!-- Input row -->
+  <div class="flex items-center gap-3">
+    <input id="textInput" type="text" placeholder="输入消息..." autocomplete="off"
+      class="flex-1 bg-gray-800/60 border border-gray-700/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition placeholder-gray-500">
+    <button id="sendBtn" class="flex-shrink-0 w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center transition active:scale-95">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+    </button>
+    <button id="micBtn" class="relative flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 flex items-center justify-center transition active:scale-95">
+      <svg id="micIcon" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      <svg id="stopIcon" class="w-6 h-6 text-white hidden" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+  </div>
+
+  <!-- Mode & status -->
+  <div class="flex items-center justify-between text-xs text-gray-500">
+    <div id="sttStatus" class="flex items-center gap-1.5">
+      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+      <span>等待说话</span>
+    </div>
+    <label class="flex items-center gap-2 cursor-pointer select-none">
+      <span>按住说话</span>
+      <input id="modeToggle" type="checkbox" class="sr-only peer">
+      <div class="w-8 h-4 bg-gray-700 rounded-full peer-checked:bg-blue-600 transition relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4"></div>
+      <span>持续录音</span>
+    </label>
+  </div>
+</div>
+
+<script>
+// ========== Config ==========
+const LLM_API = 'https://api.yunwu.ai/v1/chat/completions';
+const LLM_KEY = 'sk-qmuPkPTmn0kjo1RA7k1TczQ9zDEbptetDhiMa0NIDu8brAGY';
+const LLM_MODEL = 'gpt-4o';
+
+const SYSTEM_PROMPT = '你是一个友好的AI助手。请用简洁自然的语言回复，适合语音朗读。如果用户用中文提问，用中文回复；英文则用英文。回复尽量简短（1-3句话）。';
+
+// ========== State ==========
+let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+let isRecording = false;
+let isHoldMode = true;
+let recognition = null;
+let currentUtterance = null;
+let isSpeaking = false;
+let selectedVoice = null;
+
+// ========== TTS (Browser Speech Synthesis) ==========
+const synth = window.speechSynthesis;
+
+function loadVoices() {
+  const voices = synth.getVoices();
+  const select = document.getElementById('voiceSelect');
+  select.innerHTML = '';
+
+  // Prioritize Chinese voices
+  const zhVoices = voices.filter(v => v.lang.startsWith('zh'));
+  const enVoices = voices.filter(v => v.lang.startsWith('en'));
+  const otherVoices = voices.filter(v => !v.lang.startsWith('zh') && !v.lang.startsWith('en'));
+
+  const groups = [
+    { label: '🇨🇳 中文', list: zhVoices },
+    { label: '🇺🇸 English', list: enVoices },
+    { label: '🌐 其他', list: otherVoices },
+  ];
+
+  groups.forEach(g => {
+    if (!g.list.length) return;
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = g.label;
+    g.list.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${v.lang})`;
+      optgroup.appendChild(opt);
+    });
+    select.appendChild(optgroup);
+  });
+
+  // Auto-select a good Chinese voice
+  const preferred = zhVoices.find(v => v.name.includes('Xiaoxiao') || v.name.includes('Google') || v.name.includes('Microsoft')) || zhVoices[0] || voices[0];
+  if (preferred) {
+    select.value = preferred.name;
+    selectedVoice = preferred;
+    document.getElementById('voiceName').textContent = preferred.name.split(' ').slice(0, 2).join(' ');
+  }
+}
+
+synth.onvoiceschanged = loadVoices;
+loadVoices();
+
+document.getElementById('voiceSelect').addEventListener('change', (e) => {
+  selectedVoice = synth.getVoices().find(v => v.name === e.target.value) || null;
+  document.getElementById('voiceName').textContent = e.target.value.split(' ').slice(0, 2).join(' ');
+});
+
+function speak(text) {
+  synth.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  if (selectedVoice) utter.voice = selectedVoice;
+  utter.rate = parseFloat(document.getElementById('rateRange').value);
+  utter.pitch = parseFloat(document.getElementById('pitchRange').value);
+  utter.lang = selectedVoice?.lang || 'zh-CN';
+
+  isSpeaking = true;
+  const lastBot = document.querySelector('.msg-bot:last-child .audio-indicator');
+  if (lastBot) lastBot.classList.remove('hidden');
+
+  utter.onend = () => {
+    isSpeaking = false;
+    if (lastBot) lastBot.classList.add('hidden');
+  };
+  utter.onerror = () => {
+    isSpeaking = false;
+    if (lastBot) lastBot.classList.add('hidden');
+  };
+  synth.speak(utter);
+}
+
+// ========== LLM ==========
+async function callLLM(userText) {
+  messages.push({ role: 'user', content: userText });
+
+  const resp = await fetch(LLM_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LLM_KEY}` },
+    body: JSON.stringify({ model: LLM_MODEL, messages, stream: false }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API ${resp.status}: ${err.slice(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  const reply = data.choices[0].message.content;
+  messages.push({ role: 'assistant', content: reply });
+  return reply;
+}
+
+// ========== Chat UI ==========
+function addMessage(text, role) {
+  const chat = document.getElementById('chat');
+  const ph = document.getElementById('placeholder');
+  if (ph) ph.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg-enter flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+  const isBot = role === 'bot';
+  const bgClass = role === 'user'
+    ? 'bg-blue-600 text-white rounded-br-md'
+    : isBot
+      ? 'bg-gray-800 text-gray-200 rounded-bl-md border border-gray-700/50'
+      : 'bg-yellow-900/30 text-yellow-300 border border-yellow-800/30 text-xs';
+
+  div.innerHTML = `
+    <div class="msg-${role} max-w-[80%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${bgClass}">
+      <div>${escapeHtml(text)}</div>
+      ${isBot ? '<div class="audio-indicator hidden flex items-center gap-1 mt-2 text-xs text-blue-400"><div class="flex items-end gap-0.5 h-4"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div>播放中</div>' : ''}
+    </div>
+  `;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addLoading() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.id = 'loadingMsg';
+  div.className = 'msg-enter flex justify-start';
+  div.innerHTML = `<div class="bg-gray-800 text-gray-400 rounded-2xl rounded-bl-md px-4 py-3 text-sm border border-gray-700/50 dot-bounce"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeLoading() {
+  const el = document.getElementById('loadingMsg');
+  if (el) el.remove();
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML.replace(/\n/g, '<br>');
+}
+
+// ========== Send Message ==========
+async function sendMessage(text) {
+  if (!text.trim()) return;
+  addMessage(text, 'user');
+  document.getElementById('textInput').value = '';
+  addLoading();
+
+  try {
+    const reply = await callLLM(text);
+    removeLoading();
+    addMessage(reply, 'bot');
+    speak(reply);
+  } catch (err) {
+    removeLoading();
+    addMessage('❌ ' + err.message, 'system');
+  }
+}
+
+// ========== Text Input ==========
+document.getElementById('textInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e.target.value); }
+});
+document.getElementById('sendBtn').addEventListener('click', () => {
+  sendMessage(document.getElementById('textInput').value);
+});
+
+// ========== Speech Recognition ==========
+function initSTT() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span>浏览器不支持语音识别</span>';
+    return null;
+  }
+  const r = new SR();
+  r.continuous = false;
+  r.interimResults = false;
+  r.lang = 'zh-CN';
+  r.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    sendMessage(text);
+  };
+  r.onend = () => stopRecording();
+  r.onerror = () => stopRecording();
+  return r;
+}
+
+function startRecording() {
+  if (isRecording) return;
+  isRecording = true;
+  const btn = document.getElementById('micBtn');
+  btn.classList.add('recording-pulse', '!from-red-600', '!to-red-500');
+  document.getElementById('micIcon').classList.add('hidden');
+  document.getElementById('stopIcon').classList.remove('hidden');
+  document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span><span>🎤 识别中...</span>';
+
+  if (recognition) { try { recognition.start(); } catch {} }
+}
+
+function stopRecording() {
+  if (!isRecording) return;
+  isRecording = false;
+  const btn = document.getElementById('micBtn');
+  btn.classList.remove('recording-pulse', '!from-red-600', '!to-red-500');
+  document.getElementById('micIcon').classList.remove('hidden');
+  document.getElementById('stopIcon').classList.add('hidden');
+  document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span><span>等待说话</span>';
+
+  if (recognition) { try { recognition.stop(); } catch {} }
+}
+
+// Mic events
+const micBtn = document.getElementById('micBtn');
+micBtn.addEventListener('mousedown', (e) => { e.preventDefault(); if (isHoldMode) startRecording(); });
+micBtn.addEventListener('mouseup', () => { if (isHoldMode) stopRecording(); });
+micBtn.addEventListener('mouseleave', () => { if (isHoldMode && isRecording) stopRecording(); });
+micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if (isHoldMode) startRecording(); });
+micBtn.addEventListener('touchend', () => { if (isHoldMode) stopRecording(); });
+micBtn.addEventListener('click', () => { if (!isHoldMode) isRecording ? stopRecording() : startRecording(); });
+
+document.getElementById('modeToggle').addEventListener('change', (e) => { isHoldMode = !e.target.checked; });
+
+// ========== Settings ==========
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsPanel').classList.toggle('hidden');
+});
+
+// ========== Init ==========
+recognition = initSTT();
+
+// Fix iOS Safari: voices load async
+if (synth.getVoices().length === 0) {
+  setTimeout(loadVoices, 500);
+  setTimeout(loadVoices, 1500);
+}
+</script>
+</body>
+</html>

@@ -3,387 +3,403 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎙️ Voice Chat</title>
+<title>AI 语音助手</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-  * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
-  body { background: #0a0a0f; color: #e2e8f0; margin: 0; }
-
-  #chat::-webkit-scrollbar { width: 4px; }
-  #chat::-webkit-scrollbar-track { background: transparent; }
-  #chat::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-
-  @keyframes pulse-ring {
-    0% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(1.8); opacity: 0; }
-  }
-  .recording-pulse::before {
-    content: ''; position: absolute; inset: -4px; border-radius: 50%;
-    background: rgba(239, 68, 68, 0.4); animation: pulse-ring 1s ease-out infinite;
-  }
-
-  @keyframes wave {
-    0%, 100% { height: 8px; } 50% { height: 24px; }
-  }
-  .wave-bar {
-    width: 3px; background: #3b82f6; border-radius: 2px; animation: wave 0.6s ease-in-out infinite;
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+  body { font-family: 'Inter', sans-serif; background: #0a0e17; }
+  .chat-scroll::-webkit-scrollbar { width: 4px; }
+  .chat-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+  @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+  @keyframes wave { 0%,100% { height: 8px; } 50% { height: 24px; } }
+  .recording-ring { animation: pulse-ring 1s ease-out infinite; }
+  .wave-bar { animation: wave 0.6s ease-in-out infinite; }
   .wave-bar:nth-child(2) { animation-delay: 0.1s; }
   .wave-bar:nth-child(3) { animation-delay: 0.2s; }
   .wave-bar:nth-child(4) { animation-delay: 0.3s; }
-
-  .msg-enter { animation: slideIn 0.3s ease-out; }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .gradient-border {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
-    padding: 1px; border-radius: 1rem;
-  }
-  .gradient-border > div {
-    background: #1e1e2e; border-radius: calc(1rem - 1px);
-  }
-
-  @keyframes dotBounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-6px); }
-  }
-  .dot-bounce span {
-    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: #3b82f6; animation: dotBounce 1.2s infinite;
-  }
-  .dot-bounce span:nth-child(2) { animation-delay: 0.2s; }
-  .dot-bounce span:nth-child(3) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.15s; }
+  .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.5); }
+  .msg-user { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+  .msg-ai { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(51, 65, 85, 0.4); }
+  .btn-glow:hover { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  input[type=range] { -webkit-appearance: none; background: transparent; }
+  input[type=range]::-webkit-slider-track { height: 4px; background: #1e293b; border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; margin-top: -6px; cursor: pointer; }
 </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col text-gray-200">
 
 <!-- Header -->
-<header class="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 sticky top-0 z-10">
+<header class="glass px-4 py-3 flex items-center justify-between shrink-0 z-10">
   <div class="flex items-center gap-3">
-    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">V</div>
-    <h1 class="text-lg font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Voice Chat</h1>
+    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-lg">🤖</div>
+    <div>
+      <h1 class="text-base font-semibold text-white leading-tight">AI 语音助手</h1>
+      <p class="text-xs text-gray-400" id="voiceLabel">音色: male-qn-qingse</p>
+    </div>
   </div>
   <div class="flex items-center gap-2">
-    <div id="ttsStatus" class="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-800/50 px-3 py-1.5 rounded-full">
-      <span class="w-2 h-2 rounded-full bg-green-500"></span>
-      <span id="voiceName">默认音色</span>
+    <div id="playingIndicator" class="hidden flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs">
+      <svg class="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.132v3.736a1 1 0 001.555.832l3.197-1.868a1 1 0 000-1.664L9.555 7.168z"/></svg>
+      播放中
     </div>
-    <button id="settingsBtn" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition" title="设置">
-      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <button onclick="toggleSettings()" class="w-9 h-9 rounded-xl glass flex items-center justify-center hover:bg-slate-700/50 transition btn-glow" title="设置">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
     </button>
   </div>
 </header>
 
-<!-- Settings Panel -->
-<div id="settingsPanel" class="hidden border-b border-gray-800/50 bg-gray-900/50 px-4 py-3 space-y-3">
-  <div class="flex items-center justify-between">
-    <label class="text-sm text-gray-300">TTS 音色</label>
-    <select id="voiceSelect" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"></select>
-  </div>
-  <div class="flex items-center justify-between">
-    <label class="text-sm text-gray-300">语速</label>
-    <input id="rateRange" type="range" min="0.5" max="2" step="0.1" value="1" class="w-32 accent-blue-500">
-  </div>
-  <div class="flex items-center justify-between">
-    <label class="text-sm text-gray-300">音调</label>
-    <input id="pitchRange" type="range" min="0.5" max="2" step="0.1" value="1" class="w-32 accent-blue-500">
-  </div>
-</div>
-
 <!-- Chat Area -->
-<div id="chat" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-  <div id="placeholder" class="text-center text-gray-500 text-sm mt-8">
-    <div class="text-5xl mb-3">🎙️</div>
-    <p class="text-base">按住麦克风说话，或直接输入文字</p>
-    <p class="text-xs mt-1 text-gray-600">AI 会用语音回复你</p>
+<div id="chatArea" class="flex-1 overflow-y-auto chat-scroll px-4 py-4 space-y-3">
+  <div class="flex justify-center">
+    <span class="text-xs text-gray-500 glass px-3 py-1 rounded-full">对话开始 · 支持文字和语音输入</span>
   </div>
 </div>
 
-<!-- Bottom Bar -->
-<div class="border-t border-gray-800/50 bg-gray-900/30 backdrop-blur-sm px-4 py-3 space-y-3">
-  <!-- Input row -->
-  <div class="flex items-center gap-3">
-    <input id="textInput" type="text" placeholder="输入消息..." autocomplete="off"
-      class="flex-1 bg-gray-800/60 border border-gray-700/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition placeholder-gray-500">
-    <button id="sendBtn" class="flex-shrink-0 w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center transition active:scale-95">
-      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-    </button>
-    <button id="micBtn" class="relative flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 flex items-center justify-center transition active:scale-95">
-      <svg id="micIcon" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-      <svg id="stopIcon" class="w-6 h-6 text-white hidden" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-    </button>
-  </div>
-
-  <!-- Mode & status -->
-  <div class="flex items-center justify-between text-xs text-gray-500">
-    <div id="sttStatus" class="flex items-center gap-1.5">
-      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
-      <span>等待说话</span>
+<!-- Settings Panel -->
+<div id="settingsPanel" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center" onclick="if(event.target===this)toggleSettings()">
+  <div class="absolute inset-0 bg-black/50"></div>
+  <div class="relative glass w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto chat-scroll">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-white">设置</h2>
+      <button onclick="toggleSettings()" class="w-8 h-8 rounded-lg hover:bg-slate-700/50 flex items-center justify-center">✕</button>
     </div>
-    <label class="flex items-center gap-2 cursor-pointer select-none">
-      <span>按住说话</span>
-      <input id="modeToggle" type="checkbox" class="sr-only peer">
-      <div class="w-8 h-4 bg-gray-700 rounded-full peer-checked:bg-blue-600 transition relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4"></div>
-      <span>持续录音</span>
-    </label>
+
+    <!-- Voice Selection -->
+    <div>
+      <label class="text-sm text-gray-400 mb-2 block">TTS 音色</label>
+      <div id="voiceList" class="grid grid-cols-1 gap-1.5"></div>
+    </div>
+
+    <!-- Speed / Pitch -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="text-sm text-gray-400 mb-1 block">语速 <span id="speedVal">1.0</span></label>
+        <input type="range" min="0.5" max="2" step="0.1" value="1" class="w-full" id="speedRange" oninput="document.getElementById('speedVal').textContent=this.value">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-1 block">音调 <span id="pitchVal">0</span></label>
+        <input type="range" min="-12" max="12" step="1" value="0" class="w-full" id="pitchRange" oninput="document.getElementById('pitchVal').textContent=this.value">
+      </div>
+    </div>
+
+    <!-- Emotion -->
+    <div>
+      <label class="text-sm text-gray-400 mb-2 block">情感</label>
+      <div class="flex flex-wrap gap-1.5" id="emotionList"></div>
+    </div>
+
+    <!-- Voice Clone -->
+    <div class="border-t border-slate-700/50 pt-4">
+      <h3 class="text-sm font-medium text-white mb-2">🎤 音色克隆</h3>
+      <p class="text-xs text-gray-500 mb-3">上传一段清晰的人声音频（建议10-30秒），自动克隆音色</p>
+      <div class="flex items-center gap-2 mb-2">
+        <label class="flex-1 glass rounded-xl px-3 py-2.5 text-sm cursor-pointer hover:bg-slate-700/30 transition flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+          <span id="cloneFileLabel" class="text-gray-400 truncate">选择音频文件</span>
+          <input type="file" accept="audio/*" class="hidden" id="cloneFileInput" onchange="onCloneFileSelected(this)">
+        </label>
+        <input type="text" id="cloneVoiceName" placeholder="音色名称" class="glass rounded-xl px-3 py-2.5 text-sm w-36 text-white placeholder-gray-500" maxlength="32">
+      </div>
+      <button onclick="startVoiceClone()" id="cloneBtn" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+        开始克隆
+      </button>
+      <div id="cloneProgress" class="hidden mt-2 text-xs text-gray-400 space-y-1"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Input Bar -->
+<div class="glass px-4 py-3 shrink-0 z-10">
+  <div class="flex items-end gap-2 max-w-2xl mx-auto">
+    <!-- Record Button -->
+    <button id="recordBtn" onclick="toggleRecording()" class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 hover:opacity-90 transition relative">
+      <svg id="micIcon" class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"/></svg>
+      <div id="recordRing" class="hidden absolute inset-0 rounded-xl border-2 border-red-400 recording-ring"></div>
+    </button>
+    <!-- Wave indicator -->
+    <div id="waveIndicator" class="hidden flex items-center gap-0.5 px-1">
+      <div class="wave-bar w-1 bg-blue-400 rounded-full" style="height:8px"></div>
+      <div class="wave-bar w-1 bg-blue-400 rounded-full" style="height:8px"></div>
+      <div class="wave-bar w-1 bg-blue-400 rounded-full" style="height:8px"></div>
+      <div class="wave-bar w-1 bg-blue-400 rounded-full" style="height:8px"></div>
+      <div class="wave-bar w-1 bg-blue-400 rounded-full" style="height:8px"></div>
+    </div>
+    <!-- Text Input -->
+    <input type="text" id="textInput" placeholder="输入消息..." class="flex-1 bg-slate-800/50 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-blue-500/50" onkeydown="if(event.key==='Enter')sendMessage()">
+    <!-- Send Button -->
+    <button onclick="sendMessage()" class="w-11 h-11 rounded-xl glass flex items-center justify-center shrink-0 hover:bg-slate-700/50 transition btn-glow">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
+    </button>
   </div>
 </div>
 
 <script>
-// ========== Config ==========
-const LLM_API = 'https://api.yunwu.ai/v1/chat/completions';
-const LLM_KEY = 'sk-qmuPkPTmn0kjo1RA7k1TczQ9zDEbptetDhiMa0NIDu8brAGY';
-const LLM_MODEL = 'gpt-4o';
+const API_KEY = 'sk-qmuPkPTmn0kjo1RA7k1TczQ9zDEbptetDhiMa0NIDu8brAGY';
+const LLM_URL = 'https://yunwu.ai/v1/chat/completions';
+const TTS_URL = 'https://yunwu.ai/minimax/v1/t2a_v2';
+const UPLOAD_URL = 'https://yunwu.ai/minimax/v1/files/upload';
+const CLONE_URL = 'https://yunwu.ai/minimax/v1/voice_clone';
 
 const SYSTEM_PROMPT = '你是一个友好的AI助手。请用简洁自然的语言回复，适合语音朗读。如果用户用中文提问，用中文回复；英文则用英文。回复尽量简短（1-3句话）。';
 
-// ========== State ==========
-let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+const PRESET_VOICES = [
+  { id: 'male-qn-qingse', label: '青涩男声', tag: '中文' },
+  { id: 'female-chengshu', label: '成熟女声', tag: '中文' },
+  { id: 'female-tianmei', label: '甜美女声', tag: '中文' },
+  { id: 'English_Graceful_Lady', label: 'Graceful Lady', tag: '英文' },
+  { id: 'English_Persuasive_Man', label: 'Persuasive Man', tag: '英文' },
+];
+
+const EMOTIONS = ['happy', 'sad', 'angry', 'fearful', 'surprised', 'gentle', 'serious', 'indifferent'];
+
+let currentVoiceId = PRESET_VOICES[0].id;
+let currentEmotion = 'happy';
+let chatHistory = [{ role: 'system', content: SYSTEM_PROMPT }];
+let customVoices = [];
 let isRecording = false;
-let isHoldMode = true;
 let recognition = null;
-let currentUtterance = null;
-let isSpeaking = false;
-let selectedVoice = null;
+let currentAudio = null;
+let isSending = false;
+let selectedCloneFile = null;
 
-// ========== TTS (Browser Speech Synthesis) ==========
-const synth = window.speechSynthesis;
-
-function loadVoices() {
-  const voices = synth.getVoices();
-  const select = document.getElementById('voiceSelect');
-  select.innerHTML = '';
-
-  // Prioritize Chinese voices
-  const zhVoices = voices.filter(v => v.lang.startsWith('zh'));
-  const enVoices = voices.filter(v => v.lang.startsWith('en'));
-  const otherVoices = voices.filter(v => !v.lang.startsWith('zh') && !v.lang.startsWith('en'));
-
-  const groups = [
-    { label: '🇨🇳 中文', list: zhVoices },
-    { label: '🇺🇸 English', list: enVoices },
-    { label: '🌐 其他', list: otherVoices },
-  ];
-
-  groups.forEach(g => {
-    if (!g.list.length) return;
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = g.label;
-    g.list.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.name;
-      opt.textContent = `${v.name} (${v.lang})`;
-      optgroup.appendChild(opt);
-    });
-    select.appendChild(optgroup);
-  });
-
-  // Auto-select a good Chinese voice
-  const preferred = zhVoices.find(v => v.name.includes('Xiaoxiao') || v.name.includes('Google') || v.name.includes('Microsoft')) || zhVoices[0] || voices[0];
-  if (preferred) {
-    select.value = preferred.name;
-    selectedVoice = preferred;
-    document.getElementById('voiceName').textContent = preferred.name.split(' ').slice(0, 2).join(' ');
-  }
-}
-
-synth.onvoiceschanged = loadVoices;
-loadVoices();
-
-document.getElementById('voiceSelect').addEventListener('change', (e) => {
-  selectedVoice = synth.getVoices().find(v => v.name === e.target.value) || null;
-  document.getElementById('voiceName').textContent = e.target.value.split(' ').slice(0, 2).join(' ');
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  renderVoices();
+  renderEmotions();
+  initSpeechRecognition();
 });
 
-function speak(text) {
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  if (selectedVoice) utter.voice = selectedVoice;
-  utter.rate = parseFloat(document.getElementById('rateRange').value);
-  utter.pitch = parseFloat(document.getElementById('pitchRange').value);
-  utter.lang = selectedVoice?.lang || 'zh-CN';
-
-  isSpeaking = true;
-  const lastBot = document.querySelector('.msg-bot:last-child .audio-indicator');
-  if (lastBot) lastBot.classList.remove('hidden');
-
-  utter.onend = () => {
-    isSpeaking = false;
-    if (lastBot) lastBot.classList.add('hidden');
-  };
-  utter.onerror = () => {
-    isSpeaking = false;
-    if (lastBot) lastBot.classList.add('hidden');
-  };
-  synth.speak(utter);
+// --- Voices ---
+function renderVoices() {
+  const c = document.getElementById('voiceList');
+  const all = [...PRESET_VOICES.map(v => ({...v, preset: true})), ...customVoices.map(v => ({...v, preset: false}))];
+  c.innerHTML = all.map(v => `
+    <button onclick="selectVoice('${v.id}')" class="voice-opt flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${v.id === currentVoiceId ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40' : 'hover:bg-slate-700/40 text-gray-300'}">
+      <span>${v.label}</span>
+      <span class="text-xs opacity-60">${v.preset ? v.tag : '自定义'}</span>
+    </button>
+  `).join('');
 }
 
-// ========== LLM ==========
-async function callLLM(userText) {
-  messages.push({ role: 'user', content: userText });
+function selectVoice(id) {
+  currentVoiceId = id;
+  const all = [...PRESET_VOICES, ...customVoices];
+  const v = all.find(x => x.id === id);
+  document.getElementById('voiceLabel').textContent = `音色: ${v ? v.label : id}`;
+  renderVoices();
+}
 
-  const resp = await fetch(LLM_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LLM_KEY}` },
-    body: JSON.stringify({ model: LLM_MODEL, messages, stream: false }),
-  });
+// --- Emotions ---
+function renderEmotions() {
+  const c = document.getElementById('emotionList');
+  c.innerHTML = EMOTIONS.map(e => `
+    <button onclick="selectEmotion('${e}')" class="px-2.5 py-1 rounded-lg text-xs transition ${e === currentEmotion ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40' : 'bg-slate-800/50 text-gray-400 hover:bg-slate-700/50'}">${e}</button>
+  `).join('');
+}
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`API ${resp.status}: ${err.slice(0, 200)}`);
+function selectEmotion(e) {
+  currentEmotion = e;
+  renderEmotions();
+}
+
+// --- Settings ---
+function toggleSettings() {
+  const p = document.getElementById('settingsPanel');
+  p.classList.toggle('hidden');
+}
+
+// --- Speech Recognition ---
+function initSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'zh-CN';
+  recognition.onresult = (e) => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('textInput').value = t;
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    updateRecordUI();
+    const text = document.getElementById('textInput').value.trim();
+    if (text) sendMessage();
+  };
+  recognition.onerror = () => { isRecording = false; updateRecordUI(); };
+}
+
+function toggleRecording() {
+  if (isRecording) {
+    recognition?.stop();
+    isRecording = false;
+  } else {
+    if (!recognition) { alert('浏览器不支持语音识别'); return; }
+    document.getElementById('textInput').value = '';
+    recognition.start();
+    isRecording = true;
   }
-
-  const data = await resp.json();
-  const reply = data.choices[0].message.content;
-  messages.push({ role: 'assistant', content: reply });
-  return reply;
+  updateRecordUI();
 }
 
-// ========== Chat UI ==========
-function addMessage(text, role) {
-  const chat = document.getElementById('chat');
-  const ph = document.getElementById('placeholder');
-  if (ph) ph.remove();
+function updateRecordUI() {
+  document.getElementById('recordRing').classList.toggle('hidden', !isRecording);
+  document.getElementById('waveIndicator').classList.toggle('hidden', !isRecording);
+  document.getElementById('recordBtn').classList.toggle('from-red-500', isRecording);
+  document.getElementById('recordBtn').classList.toggle('to-red-600', isRecording);
+}
 
+// --- Chat ---
+function addMessage(role, text, loading = false) {
+  const area = document.getElementById('chatArea');
   const div = document.createElement('div');
-  div.className = `msg-enter flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-
-  const isBot = role === 'bot';
-  const bgClass = role === 'user'
-    ? 'bg-blue-600 text-white rounded-br-md'
-    : isBot
-      ? 'bg-gray-800 text-gray-200 rounded-bl-md border border-gray-700/50'
-      : 'bg-yellow-900/30 text-yellow-300 border border-yellow-800/30 text-xs';
-
+  div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+  const id = 'msg-' + Date.now();
   div.innerHTML = `
-    <div class="msg-${role} max-w-[80%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${bgClass}">
-      <div>${escapeHtml(text)}</div>
-      ${isBot ? '<div class="audio-indicator hidden flex items-center gap-1 mt-2 text-xs text-blue-400"><div class="flex items-end gap-0.5 h-4"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div>播放中</div>' : ''}
+    <div class="max-w-[80%] sm:max-w-[60%] ${role === 'user' ? 'msg-user' : 'msg-ai'} rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}">
+      ${role === 'user' ? text : `<span id="${id}">${loading ? '<span class="inline-flex gap-1"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.15s"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.3s"></span></span>' : text}</span>`}
     </div>
   `;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return id;
 }
 
-function addLoading() {
-  const chat = document.getElementById('chat');
-  const div = document.createElement('div');
-  div.id = 'loadingMsg';
-  div.className = 'msg-enter flex justify-start';
-  div.innerHTML = `<div class="bg-gray-800 text-gray-400 rounded-2xl rounded-bl-md px-4 py-3 text-sm border border-gray-700/50 dot-bounce"><span></span><span></span><span></span></div>`;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
+async function sendMessage() {
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if (!text || isSending) return;
+  input.value = '';
+  isSending = true;
 
-function removeLoading() {
-  const el = document.getElementById('loadingMsg');
-  if (el) el.remove();
-}
-
-function escapeHtml(t) {
-  const d = document.createElement('div');
-  d.textContent = t;
-  return d.innerHTML.replace(/\n/g, '<br>');
-}
-
-// ========== Send Message ==========
-async function sendMessage(text) {
-  if (!text.trim()) return;
-  addMessage(text, 'user');
-  document.getElementById('textInput').value = '';
-  addLoading();
+  addMessage('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  const aiId = addMessage('ai', '', true);
 
   try {
-    const reply = await callLLM(text);
-    removeLoading();
-    addMessage(reply, 'bot');
-    speak(reply);
-  } catch (err) {
-    removeLoading();
-    addMessage('❌ ' + err.message, 'system');
+    const res = await fetch(LLM_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o', messages: chatHistory })
+    });
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || '抱歉，我无法回复。';
+    chatHistory.push({ role: 'assistant', content: reply });
+    document.getElementById(aiId).textContent = reply;
+    await playTTS(reply);
+  } catch (e) {
+    document.getElementById(aiId).textContent = '❌ 请求失败: ' + e.message;
+  }
+  isSending = false;
+}
+
+// --- TTS ---
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  return bytes;
+}
+
+async function playTTS(text) {
+  try {
+    const speed = parseFloat(document.getElementById('speedRange').value);
+    const pitch = parseInt(document.getElementById('pitchRange').value);
+    const res = await fetch(TTS_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'speech-2.8-hd',
+        text,
+        stream: false,
+        voice_setting: { voice_id: currentVoiceId, speed, vol: 1, pitch, emotion: currentEmotion },
+        audio_setting: { sample_rate: 32000, bitrate: 128000, format: 'mp3', channel: 1 }
+      })
+    });
+    const data = await res.json();
+    if (data.base_resp?.status_code !== 0) throw new Error(data.base_resp?.status_msg || 'TTS failed');
+    const bytes = hexToBytes(data.data.audio);
+    const blob = new Blob([bytes], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    if (currentAudio) { currentAudio.pause(); URL.revokeObjectURL(currentAudio.src); }
+    currentAudio = new Audio(url);
+    const ind = document.getElementById('playingIndicator');
+    ind.classList.remove('hidden');
+    currentAudio.onended = () => { ind.classList.add('hidden'); URL.revokeObjectURL(url); };
+    currentAudio.onerror = () => { ind.classList.add('hidden'); URL.revokeObjectURL(url); };
+    await currentAudio.play();
+  } catch (e) {
+    console.error('TTS error:', e);
   }
 }
 
-// ========== Text Input ==========
-document.getElementById('textInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e.target.value); }
-});
-document.getElementById('sendBtn').addEventListener('click', () => {
-  sendMessage(document.getElementById('textInput').value);
-});
+// --- Voice Clone ---
+function onCloneFileSelected(input) {
+  selectedCloneFile = input.files[0];
+  document.getElementById('cloneFileLabel').textContent = selectedCloneFile?.name || '选择音频文件';
+  document.getElementById('cloneBtn').disabled = !selectedCloneFile;
+}
 
-// ========== Speech Recognition ==========
-function initSTT() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span>浏览器不支持语音识别</span>';
-    return null;
+async function startVoiceClone() {
+  if (!selectedCloneFile) return;
+  const name = document.getElementById('cloneVoiceName').value.trim();
+  if (!name) { alert('请输入音色名称'); return; }
+  // Validate voice_id
+  const vid = 'Clone_' + name.replace(/[^a-zA-Z0-9\-]/g, '').replace(/^-|-$/g, '');
+  if (vid.length < 8) { alert('音色名称太短（至少需要几个有效字符）'); return; }
+
+  const btn = document.getElementById('cloneBtn');
+  const prog = document.getElementById('cloneProgress');
+  btn.disabled = true;
+  btn.textContent = '克隆中...';
+  prog.classList.remove('hidden');
+
+  const log = (msg) => { prog.innerHTML += `<div>${msg}</div>`; };
+  try {
+    // Step A: Upload main file
+    log('📤 步骤 1/2: 上传音频文件...');
+    const fd = new FormData();
+    fd.append('file', selectedCloneFile);
+    fd.append('purpose', 'voice_clone');
+    const upRes = await fetch(UPLOAD_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}` },
+      body: fd
+    });
+    const upData = await upRes.json();
+    if (upData.base_resp?.status_code !== 0) throw new Error('上传失败: ' + (upData.base_resp?.status_msg || ''));
+    const fileId = upData.file.file_id;
+    log(`✅ 文件已上传 (file_id: ${fileId})`);
+
+    // Step B: Clone (without prompt file for simplicity)
+    log('🧬 步骤 2/2: 克隆音色...');
+    const cloneRes = await fetch(CLONE_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_id: fileId,
+        voice_id: vid,
+        text: '你好，这是一段测试语音。',
+        model: 'speech-2.8-hd',
+        language_boost: 'auto',
+        need_noise_reduction: true,
+        need_volume_normalization: true,
+        aigc_watermark: false
+      })
+    });
+    const cloneData = await cloneRes.json();
+    if (cloneData.base_resp?.status_code !== 0) throw new Error('克隆失败: ' + (cloneData.base_resp?.status_msg || ''));
+
+    customVoices.push({ id: vid, label: name });
+    selectVoice(vid);
+    renderVoices();
+    log('🎉 克隆成功！已切换到新音色');
+  } catch (e) {
+    log('❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始克隆';
   }
-  const r = new SR();
-  r.continuous = false;
-  r.interimResults = false;
-  r.lang = 'zh-CN';
-  r.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    sendMessage(text);
-  };
-  r.onend = () => stopRecording();
-  r.onerror = () => stopRecording();
-  return r;
-}
-
-function startRecording() {
-  if (isRecording) return;
-  isRecording = true;
-  const btn = document.getElementById('micBtn');
-  btn.classList.add('recording-pulse', '!from-red-600', '!to-red-500');
-  document.getElementById('micIcon').classList.add('hidden');
-  document.getElementById('stopIcon').classList.remove('hidden');
-  document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span><span>🎤 识别中...</span>';
-
-  if (recognition) { try { recognition.start(); } catch {} }
-}
-
-function stopRecording() {
-  if (!isRecording) return;
-  isRecording = false;
-  const btn = document.getElementById('micBtn');
-  btn.classList.remove('recording-pulse', '!from-red-600', '!to-red-500');
-  document.getElementById('micIcon').classList.remove('hidden');
-  document.getElementById('stopIcon').classList.add('hidden');
-  document.getElementById('sttStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span><span>等待说话</span>';
-
-  if (recognition) { try { recognition.stop(); } catch {} }
-}
-
-// Mic events
-const micBtn = document.getElementById('micBtn');
-micBtn.addEventListener('mousedown', (e) => { e.preventDefault(); if (isHoldMode) startRecording(); });
-micBtn.addEventListener('mouseup', () => { if (isHoldMode) stopRecording(); });
-micBtn.addEventListener('mouseleave', () => { if (isHoldMode && isRecording) stopRecording(); });
-micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if (isHoldMode) startRecording(); });
-micBtn.addEventListener('touchend', () => { if (isHoldMode) stopRecording(); });
-micBtn.addEventListener('click', () => { if (!isHoldMode) isRecording ? stopRecording() : startRecording(); });
-
-document.getElementById('modeToggle').addEventListener('change', (e) => { isHoldMode = !e.target.checked; });
-
-// ========== Settings ==========
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  document.getElementById('settingsPanel').classList.toggle('hidden');
-});
-
-// ========== Init ==========
-recognition = initSTT();
-
-// Fix iOS Safari: voices load async
-if (synth.getVoices().length === 0) {
-  setTimeout(loadVoices, 500);
-  setTimeout(loadVoices, 1500);
 }
 </script>
 </body>
